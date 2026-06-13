@@ -7,6 +7,36 @@ anywhere.
 
 ![LocalScribe main screen](screenshots/overview.jpg)
 
+## About
+
+LocalScribe is a self-contained transcription tool built around
+[OpenAI Whisper](https://github.com/openai/whisper) for speech-to-text and
+[pyannote.audio](https://github.com/pyannote/pyannote-audio) for speaker
+diarization. It started as a way to turn long-form recordings into
+ready-to-edit transcripts, captions, and clip ideas — without sending any
+audio or video to a third-party service.
+
+It ships as both a small local web app (`app.py` + `index.html`) and a
+Tkinter desktop app (`transcriber_app.py`), both backed by the same shared
+processing module (`transcribe_core.py`), so every export format and feature
+behaves identically in either interface.
+
+## Use cases
+
+- **Podcasters** — turn an episode into show notes, a blog post draft, and
+  SRT captions for video clips, with each host labeled by name.
+- **YouTubers / video editors** — generate SRT/VTT captions for upload, plus
+  a ranked list of highlight moments to speed up trailer or shorts editing.
+- **Short-form content creators** — use the "Shorts / Reels / TikTok" preset
+  to surface tighter, punchier moments suited to vertical video.
+- **Interviewers / journalists** — get a speaker-labeled transcript to quote
+  from accurately without manually re-listening to the recording.
+- **Researchers / students** — transcribe lectures, interviews, or focus
+  groups locally, keeping sensitive recordings off the cloud entirely.
+- **Anyone with a backlog of recordings** — batch-queue multiple files and
+  come back later to a "Recently completed" list with cached transcripts
+  ready to copy and paste.
+
 ## Highlights
 
 - **Drag-and-drop, multi-file queue** — drop in several recordings at once and
