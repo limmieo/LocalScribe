@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+config.json
+history.json
+output/
+output_test/
+input/
+server-error.log
+server-out.log
+server.log
+.smoke/
+.claude/
+vendor/

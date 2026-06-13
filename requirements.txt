@@ -1,0 +1,3 @@
+openai-whisper
+tkinterdnd2
+pyannote.audio==3.3.2

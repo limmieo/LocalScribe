@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalScribe</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1017;
+      --panel: #171b25;
+      --panel-2: #202633;
+      --text: #f5f7fb;
+      --muted: #9da8bb;
+      --accent: #7c6df2;
+      --accent-2: #32d4a4;
+      --danger: #ff6f7d;
+      --border: #303849;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 0%, #262155 0, transparent 34rem),
+        radial-gradient(circle at 90% 15%, #123b39 0, transparent 28rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 52px 0 64px; }
+    header { margin-bottom: 28px; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3.7rem); letter-spacing: -0.055em; }
+    .lede { margin: 0; color: var(--muted); font-size: 1.05rem; }
+    .card {
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 24px 80px #0005;
+      backdrop-filter: blur(14px);
+    }
+    .drop-zone {
+      min-height: 210px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 2px dashed #485268;
+      border-radius: 16px;
+      background: #111620aa;
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+    .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent-2); background: #16231f; transform: translateY(-2px); }
+    .drop-icon { font-size: 2.2rem; margin-bottom: 10px; }
+    .drop-zone strong { display: block; font-size: 1.2rem; }
+    .drop-zone span { display: block; margin-top: 6px; color: var(--muted); }
+    #fileInput { display: none; }
+    .selected {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: var(--panel-2);
+      border-radius: 10px;
+      color: var(--accent-2);
+      word-break: break-all;
+    }
+    .queue-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--panel-2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .queue-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent-2); }
+    .queue-item .size { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+    .queue-item .queue-status { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+    .queue-item.active .name { color: var(--text); }
+    .queue-item.done .queue-status { color: var(--accent-2); }
+    .queue-item.failed .queue-status { color: var(--danger); }
+    .queue-item button.remove {
+      width: auto;
+      margin: 0;
+      padding: 4px 9px;
+      border-radius: 7px;
+      background: #2a3142;
+      box-shadow: none;
+      font-size: .85rem;
+      font-weight: 600;
+    }
+    .recent-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .recent-item {
+      padding: 12px 14px;
+      background: var(--panel-2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .recent-item .recent-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; cursor: pointer; user-select: none; }
+    .recent-item.error .recent-head { cursor: default; }
+    .recent-item .recent-titles { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex: 1; min-width: 0; }
+    .recent-item .recent-name { color: var(--text); font-weight: 600; word-break: break-all; }
+    .recent-item .recent-time { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+    .recent-item .recent-arrow { color: var(--muted); flex-shrink: 0; transition: transform 160ms ease; }
+    .recent-item.open .recent-arrow { transform: rotate(180deg); }
+    .recent-item .outputs { font-size: .82rem; }
+    .recent-item.error .recent-name { color: var(--danger); }
+    .recent-item .recent-body { display: none; margin-top: 12px; }
+    .recent-item.open .recent-body { display: block; }
+    .format-row label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+    .format-row select { max-width: 320px; margin-top: 4px; }
+    .speaker-rename { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 10px; }
+    .speaker-rename label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted); }
+    .speaker-rename input { width: 160px; padding: 7px 9px; }
+    .transcript-panel textarea {
+      width: 100%;
+      min-height: 160px;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      resize: vertical;
+    }
+    .transcript-panel .copy-btn {
+      width: auto;
+      margin-top: 6px;
+      padding: 6px 12px;
+      font-size: .85rem;
+      border-radius: 8px;
+    }
+    .section { margin-top: 24px; }
+    .section h2 { margin: 0 0 13px; font-size: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    label.option, label.check {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 13px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: #111620;
+      cursor: pointer;
+    }
+    label.option { display: grid; gap: 7px; }
+    label.check:hover { border-color: #59647a; }
+    select, input[type="text"], input[type="password"], input[type="number"] {
+      width: 100%;
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font: inherit;
+    }
+    .token-ok {
+      padding: 13px;
+      border: 1px solid #2f5a4a;
+      border-radius: 11px;
+      background: #122821;
+      color: var(--accent-2);
+      font-size: .9rem;
+    }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+    .hint { color: var(--muted); font-size: .86rem; line-height: 1.45; }
+    .speaker-note {
+      padding: 14px;
+      border: 1px solid #594f2b;
+      border-radius: 11px;
+      color: #e9dba3;
+      background: #2c2819;
+      font-size: .9rem;
+    }
+    button {
+      width: 100%;
+      margin-top: 24px;
+      padding: 15px 18px;
+      border: 0;
+      border-radius: 12px;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), #9c61e8);
+      font: 700 1rem inherit;
+      cursor: pointer;
+      box-shadow: 0 10px 30px #765de844;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    .status { display: none; margin-top: 18px; padding: 16px; border-radius: 12px; background: var(--panel-2); }
+    .status.visible { display: block; }
+    .status.error { color: #ffd5da; border: 1px solid var(--danger); }
+    .status.complete { color: #c8ffed; border: 1px solid var(--accent-2); }
+    .pulse { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: var(--accent-2); animation: pulse 1.2s infinite; }
+    .outputs { margin: 9px 0 0; color: var(--muted); }
+    @keyframes pulse { 50% { opacity: .3; transform: scale(.75); } }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } main { padding-top: 30px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>LocalScribe</h1>
+      <p class="lede">Drop in a recording. Get editing-ready transcripts without uploading it anywhere.</p>
+    </header>
+
+    <form class="card" id="form">
+      <div class="drop-zone" id="dropZone" tabindex="0" role="button">
+        <div>
+          <div class="drop-icon">＋</div>
+          <strong>Drop video or audio files here</strong>
+          <span>or click to browse your computer · multiple files supported</span>
+        </div>
+      </div>
+      <input id="fileInput" type="file" accept="audio/*,video/*,.mkv,.m4a,.wav,.mp3,.mp4,.mov,.webm" multiple>
+      <div class="selected" id="selected">No files selected</div>
+      <div class="queue-list" id="queueList"></div>
+
+      <section class="section">
+        <h2>Transcription</h2>
+        <div class="grid">
+          <label class="option">Whisper model
+            <select id="model">
+              <option value="turbo" selected>Turbo - recommended</option>
+              <option value="small">Small - lighter</option>
+              <option value="medium">Medium - more accurate</option>
+              <option value="large-v3">Large v3 - highest quality</option>
+            </select>
+          </label>
+          <label class="option">Language
+            <select id="language">
+              <option value="auto">Auto detect</option>
+              <option value="English" selected>English</option>
+              <option value="Spanish">Spanish</option>
+              <option value="French">French</option>
+              <option value="German">German</option>
+              <option value="Portuguese">Portuguese</option>
+              <option value="Thai">Thai</option>
+            </select>
+          </label>
+          <label class="option">Task
+            <select id="task">
+              <option value="transcribe" selected>Keep original language</option>
+              <option value="translate">Translate to English</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Files to create</h2>
+        <div class="grid">
+          <label class="check"><input type="checkbox" name="format" value="txt" checked><span><strong>Plain text</strong><br><span class="hint">Clean reading and copywriting</span></span></label>
+          <label class="check"><input type="checkbox" name="format" value="timestamped_txt" checked><span><strong>Timestamped text</strong><br><span class="hint">Fast reference while editing</span></span></label>
+          <label class="check"><input type="checkbox" name="format" value="srt" checked><span><strong>SRT captions</strong><br><span class="hint">Premiere, Resolve, YouTube</span></span></label>
+          <label class="check"><input type="checkbox" name="format" value="vtt"><span><strong>WebVTT captions</strong><br><span class="hint">Web players and social tools</span></span></label>
+          <label class="check"><input type="checkbox" name="format" value="tsv"><span><strong>TSV data</strong><br><span class="hint">Segments in a spreadsheet</span></span></label>
+          <label class="check"><input type="checkbox" name="format" value="json"><span><strong>JSON data</strong><br><span class="hint">Detailed automation data</span></span></label>
+          <label class="check"><input type="checkbox" name="format" value="highlights" id="highlightsCheck" checked><span><strong>Highlight candidates</strong><br><span class="hint">Ranked moments, picked by length and style below</span></span></label>
+        </div>
+        <div class="grid" id="highlightPresetField" style="margin-top: 12px;">
+          <label class="option">Highlight style
+            <select id="highlightPreset">
+              <option value="standard" selected>Standard (15-60s)</option>
+              <option value="shorts">Shorts / Reels / TikTok (15-45s)</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Speakers</h2>
+        <label class="check">
+          <input type="checkbox" id="diarize">
+          <span><strong>Identify speakers</strong><br><span class="hint">Tags each line in the exports above with Speaker 1, Speaker 2, etc. Runs locally after transcription and takes extra time.</span></span>
+        </label>
+        <div class="grid" id="speakerFields" style="margin-top: 12px; display: none;">
+          <label class="option">Minimum speakers (optional)
+            <input type="number" id="minSpeakers" min="1" max="20" placeholder="Auto">
+          </label>
+          <label class="option">Maximum speakers (optional)
+            <input type="number" id="maxSpeakers" min="1" max="20" placeholder="Auto">
+          </label>
+          <label class="option" id="tokenField">Hugging Face token
+            <input type="password" id="hfToken" placeholder="hf_...">
+          </label>
+        </div>
+        <div class="hint" id="tokenHint" style="margin-top: 10px; display: none;">
+          One-time setup: accept the terms for
+          <a href="https://huggingface.co/pyannote/segmentation-3.0" target="_blank" rel="noopener">pyannote/segmentation-3.0</a>
+          and
+          <a href="https://huggingface.co/pyannote/speaker-diarization-3.1" target="_blank" rel="noopener">pyannote/speaker-diarization-3.1</a>,
+          then create a read token at
+          <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a>
+          and paste it above. It's saved locally in <code>config.json</code> and never leaves this machine.
+        </div>
+        <div class="token-ok" id="tokenConfigured" style="margin-top: 10px; display: none;">Hugging Face token configured &check; speaker identification is ready to use.</div>
+      </section>
+
+      <button id="startButton" type="submit">Transcribe files</button>
+      <div class="status" id="status"></div>
+    </form>
+
+    <section class="card" style="margin-top: 24px;">
+      <h2 style="margin: 0;">Recently completed</h2>
+      <p class="hint" style="margin: 6px 0 0;">Click a file name to view its text here and copy it.</p>
+      <div class="recent-list" id="recentList">
+        <p class="hint" style="margin: 14px 0 0;">Nothing transcribed yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const dropZone = document.querySelector("#dropZone");
+    const fileInput = document.querySelector("#fileInput");
+    const selected = document.querySelector("#selected");
+    const queueListEl = document.querySelector("#queueList");
+    const recentListEl = document.querySelector("#recentList");
+    const form = document.querySelector("#form");
+    const button = document.querySelector("#startButton");
+    const statusBox = document.querySelector("#status");
+
+    let queue = [];
+
+    function choose(files) {
+      for (const file of files) {
+        const exists = queue.some(item =>
+          item.file.name === file.name &&
+          item.file.size === file.size &&
+          item.file.lastModified === file.lastModified
+        );
+        if (!exists) queue.push({ file, status: "queued", storedFilename: "" });
+      }
+      renderQueue();
+    }
+
+    function removeFromQueue(index) {
+      queue.splice(index, 1);
+      renderQueue();
+    }
+
+    function statusLabel(status) {
+      switch (status) {
+        case "queued": return "Queued";
+        case "uploading": return "Uploading...";
+        case "processing": return "Transcribing...";
+        case "done": return "Done";
+        case "error": return "Failed";
+        default: return "";
+      }
+    }
+
+    function renderQueue() {
+      selected.textContent = queue.length
+        ? `${queue.length} file${queue.length === 1 ? "" : "s"} selected`
+        : "No files selected";
+      queueListEl.innerHTML = "";
+      queue.forEach((item, index) => {
+        const row = document.createElement("div");
+        const stateClass = item.status === "done" ? "done" : item.status === "error" ? "failed" : item.status !== "queued" ? "active" : "";
+        row.className = `queue-item ${stateClass}`.trim();
+
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = item.file.name;
+
+        const size = document.createElement("span");
+        size.className = "size";
+        size.textContent = formatBytes(item.file.size);
+
+        const status = document.createElement("span");
+        status.className = "queue-status";
+        status.textContent = statusLabel(item.status);
+
+        row.append(name, size, status);
+
+        if (item.status === "queued") {
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "remove";
+          remove.textContent = "Remove";
+          remove.addEventListener("click", () => removeFromQueue(index));
+          row.append(remove);
+        }
+
+        queueListEl.append(row);
+      });
+    }
+
+    function formatBytes(bytes) {
+      const units = ["B", "KB", "MB", "GB"];
+      let value = bytes;
+      let unit = 0;
+      while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+      return `${value.toFixed(unit ? 1 : 0)} ${units[unit]}`;
+    }
+
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") fileInput.click();
+    });
+    fileInput.addEventListener("change", () => {
+      choose(fileInput.files);
+      fileInput.value = "";
+    });
+    ["dragenter", "dragover"].forEach(name => dropZone.addEventListener(name, event => {
+      event.preventDefault();
+      dropZone.classList.add("dragging");
+    }));
+    ["dragleave", "drop"].forEach(name => dropZone.addEventListener(name, event => {
+      event.preventDefault();
+      dropZone.classList.remove("dragging");
+    }));
+    dropZone.addEventListener("drop", event => choose(event.dataTransfer.files));
+
+    const diarizeCheckbox = document.querySelector("#diarize");
+    const speakerFields = document.querySelector("#speakerFields");
+    const tokenField = document.querySelector("#tokenField");
+    const tokenHint = document.querySelector("#tokenHint");
+    const tokenConfigured = document.querySelector("#tokenConfigured");
+    let hfTokenConfigured = false;
+
+    function updateSpeakerFields() {
+      const on = diarizeCheckbox.checked;
+      speakerFields.style.display = on ? "grid" : "none";
+      tokenField.style.display = on && !hfTokenConfigured ? "" : "none";
+      tokenHint.style.display = on && !hfTokenConfigured ? "block" : "none";
+      tokenConfigured.style.display = on && hfTokenConfigured ? "block" : "none";
+    }
+
+    diarizeCheckbox.addEventListener("change", updateSpeakerFields);
+
+    const highlightsCheckbox = document.querySelector("#highlightsCheck");
+    const highlightPresetField = document.querySelector("#highlightPresetField");
+
+    function updateHighlightFields() {
+      highlightPresetField.style.display = highlightsCheckbox.checked ? "grid" : "none";
+    }
+
+    highlightsCheckbox.addEventListener("change", updateHighlightFields);
+    updateHighlightFields();
+
+    fetch("/api/config")
+      .then(response => response.json())
+      .then(data => {
+        hfTokenConfigured = Boolean(data.hf_token_configured);
+        updateSpeakerFields();
+      })
+      .catch(() => {});
+
+    function showStatus(message, kind = "running") {
+      statusBox.className = `status visible ${kind}`;
+      statusBox.innerHTML = kind === "running" ? `<span class="pulse"></span>${message}` : message;
+    }
+
+    function escapeHtml(value) {
+      const div = document.createElement("div");
+      div.textContent = value;
+      return div.innerHTML;
+    }
+
+    async function uploadItem(item) {
+      showStatus(`Copying ${escapeHtml(item.file.name)} into the input folder...`);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "X-Filename": encodeURIComponent(item.file.name) },
+        body: item.file
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Upload failed.");
+      item.storedFilename = data.filename;
+    }
+
+    async function pollUntilDone(onUpdate) {
+      while (true) {
+        const response = await fetch("/api/status");
+        const data = await response.json();
+        if (data.state === "complete" || data.state === "error") return data;
+        onUpdate(data);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+    }
+
+    function formatTimeAgo(seconds) {
+      const diff = Date.now() / 1000 - seconds;
+      if (diff < 60) return "just now";
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return new Date(seconds * 1000).toLocaleString();
+    }
+
+    async function loadHistory() {
+      try {
+        const response = await fetch("/api/history");
+        const data = await response.json();
+        renderHistory(data.history || []);
+      } catch (error) {
+        // ignore - history is a nice-to-have
+      }
+    }
+
+    function formatLabel(filename) {
+      if (filename.endsWith(".highlights.md")) return "Highlights";
+      if (filename.endsWith(".timestamps.txt")) return "Timestamped text";
+      if (filename.endsWith(".txt")) return "Plain text";
+      if (filename.endsWith(".srt")) return "SRT captions";
+      if (filename.endsWith(".vtt")) return "WebVTT captions";
+      if (filename.endsWith(".tsv")) return "TSV data";
+      if (filename.endsWith(".csv")) return "CSV data";
+      if (filename.endsWith(".json")) return "JSON data";
+      if (filename.endsWith(".md")) return "Markdown";
+      return filename;
+    }
+
+    function detectSpeakers(text) {
+      const found = new Set();
+      for (const match of text.matchAll(/Speaker \d+/g)) found.add(match[0]);
+      return [...found].sort((a, b) => Number(a.slice(8)) - Number(b.slice(8)));
+    }
+
+    function applySpeakerNames(text, names) {
+      let result = text;
+      for (const [original, custom] of Object.entries(names)) {
+        if (custom && custom.trim()) result = result.split(original).join(custom.trim());
+      }
+      return result;
+    }
+
+    function renderTranscript(state) {
+      const panel = state.el.querySelector(".transcript-panel");
+      const text = applySpeakerNames(state.cache[state.currentFile], state.speakerNames);
+      panel.innerHTML = `<textarea readonly>${escapeHtml(text)}</textarea><button type="button" class="copy-btn">Copy</button>`;
+    }
+
+    function renderSpeakerInputs(state) {
+      const container = state.el.querySelector(".speaker-rename");
+      const speakers = detectSpeakers(state.cache[state.currentFile]);
+      if (!speakers.length) {
+        container.innerHTML = "";
+        return;
+      }
+      container.innerHTML = speakers.map(speaker =>
+        `<label>${escapeHtml(speaker)}<input type="text" data-speaker="${escapeHtml(speaker)}" placeholder="${escapeHtml(speaker)}" value="${escapeHtml(state.speakerNames[speaker] || "")}"></label>`
+      ).join("");
+    }
+
+    async function loadFormat(state, filename) {
+      state.currentFile = filename;
+      const panel = state.el.querySelector(".transcript-panel");
+      if (state.cache[filename] === undefined) {
+        panel.innerHTML = '<p class="hint">Loading...</p>';
+        try {
+          const response = await fetch(`/api/output?name=${encodeURIComponent(filename)}`);
+          if (!response.ok) throw new Error("Could not load this file.");
+          state.cache[filename] = await response.text();
+        } catch (error) {
+          panel.innerHTML = '<p class="hint">Could not load this file. Make sure LocalScribe is still running, then try again. You can also open it directly from the output folder.</p>';
+          return;
+        }
+      }
+      renderSpeakerInputs(state);
+      renderTranscript(state);
+    }
+
+    function renderHistory(history) {
+      const serialized = JSON.stringify(history);
+      if (serialized === renderHistory.last) return;
+      renderHistory.last = serialized;
+
+      if (!history.length) {
+        recentListEl.innerHTML = '<p class="hint" style="margin: 14px 0 0;">Nothing transcribed yet.</p>';
+        return;
+      }
+      recentListEl.innerHTML = history.map(entry => {
+        const time = formatTimeAgo(entry.finished_at);
+        const name = escapeHtml(entry.filename);
+        if (entry.state === "error") {
+          return `<div class="recent-item error"><div class="recent-head"><div class="recent-titles"><span class="recent-name">${name}</span><span class="recent-time">${time}</span></div></div><div class="outputs">${escapeHtml(entry.error || "Transcription failed.")}</div></div>`;
+        }
+        const options = (entry.outputs || []).map(output =>
+          `<option value="${escapeHtml(output)}">${escapeHtml(formatLabel(output))}</option>`
+        ).join("");
+        const note = entry.note ? `<div class="hint">${escapeHtml(entry.note)}</div>` : "";
+        return `<div class="recent-item">
+          <div class="recent-head"><div class="recent-titles"><span class="recent-name">${name}</span><span class="recent-time">${time}</span></div><span class="recent-arrow">&#9662;</span></div>
+          <div class="recent-body">
+            <div class="format-row"><label>View<select class="format-select">${options}</select></label></div>
+            <div class="speaker-rename"></div>
+            <div class="transcript-panel"></div>
+          </div>
+          ${note}
+        </div>`;
+      }).join("");
+
+      recentListEl.querySelectorAll(".recent-item:not(.error)").forEach(el => {
+        el._state = { el, cache: {}, speakerNames: {}, currentFile: null };
+      });
+    }
+
+    recentListEl.addEventListener("click", event => {
+      const head = event.target.closest(".recent-head");
+      if (head) {
+        const item = head.closest(".recent-item");
+        if (item.classList.contains("error")) return;
+        const wasOpen = item.classList.contains("open");
+        item.classList.toggle("open");
+        if (!wasOpen && !item._state.currentFile) {
+          const select = item.querySelector(".format-select");
+          if (select && select.value) loadFormat(item._state, select.value);
+        }
+        return;
+      }
+      const copyBtn = event.target.closest(".copy-btn");
+      if (copyBtn) {
+        const textarea = copyBtn.previousElementSibling;
+        navigator.clipboard.writeText(textarea.value).then(() => {
+          const original = copyBtn.textContent;
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => { copyBtn.textContent = original; }, 1500);
+        });
+      }
+    });
+
+    recentListEl.addEventListener("change", event => {
+      const select = event.target.closest(".format-select");
+      if (select) loadFormat(select.closest(".recent-item")._state, select.value);
+    });
+
+    recentListEl.addEventListener("input", event => {
+      const input = event.target.closest("[data-speaker]");
+      if (input) {
+        const state = input.closest(".recent-item")._state;
+        state.speakerNames[input.dataset.speaker] = input.value;
+        renderTranscript(state);
+      }
+    });
+
+    loadHistory();
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const pending = queue.filter(item => item.status === "queued");
+      if (!pending.length) {
+        showStatus("Choose a video or audio file first.", "error");
+        return;
+      }
+      const formats = [...document.querySelectorAll('input[name="format"]:checked')].map(input => input.value);
+      if (!formats.length) {
+        showStatus("Select at least one output format.", "error");
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "Working...";
+
+      for (let index = 0; index < queue.length; index++) {
+        const item = queue[index];
+        if (item.status !== "queued") continue;
+        const position = `File ${index + 1}/${queue.length}`;
+        try {
+          item.status = "uploading";
+          renderQueue();
+          await uploadItem(item);
+
+          item.status = "processing";
+          renderQueue();
+
+          const payload = {
+            filename: item.storedFilename,
+            formats,
+            model: document.querySelector("#model").value,
+            language: document.querySelector("#language").value,
+            task: document.querySelector("#task").value,
+            diarize: diarizeCheckbox.checked,
+            highlight_preset: document.querySelector("#highlightPreset").value
+          };
+          if (diarizeCheckbox.checked) {
+            const minSpeakers = document.querySelector("#minSpeakers").value;
+            const maxSpeakers = document.querySelector("#maxSpeakers").value;
+            const hfToken = document.querySelector("#hfToken").value.trim();
+            if (minSpeakers) payload.min_speakers = Number(minSpeakers);
+            if (maxSpeakers) payload.max_speakers = Number(maxSpeakers);
+            if (hfToken) payload.hf_token = hfToken;
+          }
+
+          const response = await fetch("/api/transcribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Could not start transcription.");
+
+          const result = await pollUntilDone(status => {
+            showStatus(`${position}: ${escapeHtml(status.message || "Working...")}`);
+          });
+
+          if (result.state === "error") {
+            item.status = "error";
+            showStatus(`${position}: <strong>Failed.</strong><div class="outputs">${escapeHtml(result.error)}</div>`, "error");
+          } else {
+            item.status = "done";
+            const outputs = result.outputs.map(name => `<code>${escapeHtml(name)}</code>`).join(", ");
+            showStatus(`${position}: <strong>Done.</strong><div class="outputs">${outputs}</div>`, "complete");
+          }
+        } catch (error) {
+          item.status = "error";
+          showStatus(`${position}: ${escapeHtml(error.message)}`, "error");
+        }
+        renderQueue();
+        loadHistory();
+      }
+
+      button.disabled = false;
+      button.textContent = "Transcribe files";
+    });
+  </script>
+</body>
+</html>
