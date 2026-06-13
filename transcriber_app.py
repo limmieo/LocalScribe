@@ -1,3 +1,6 @@
+# LocalScribe - desktop app
+# Author: limmieo (github.com/limmieo)
+
 from __future__ import annotations
 
 import json
@@ -209,6 +212,11 @@ class TranscriberApp:
         ttk.Label(outer, textvariable=self.status).pack(anchor="w")
         self.log = Text(outer, height=8, wrap="word", font=("Consolas", 9), state="disabled")
         self.log.pack(fill="both", expand=True, pady=(6, 0))
+        ttk.Label(
+            outer,
+            text="LocalScribe · Built by limmieo (github.com/limmieo)",
+            style="Subtitle.TLabel",
+        ).pack(anchor="center", pady=(8, 0))
 
     def browse(self) -> None:
         paths = filedialog.askopenfilenames(

@@ -1,3 +1,6 @@
+# LocalScribe - web UI server
+# Author: limmieo (github.com/limmieo)
+
 from __future__ import annotations
 
 import json

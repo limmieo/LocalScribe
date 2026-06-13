@@ -1,3 +1,6 @@
+# LocalScribe - shared transcription/export core
+# Author: limmieo (github.com/limmieo)
+
 from __future__ import annotations
 
 import csv
